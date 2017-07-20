@@ -1,12 +1,17 @@
 import random
+import logging
 
 import six
 from kombu import Connection
 from kombu.common import maybe_declare
 from kombu.messaging import Exchange, Queue
 from kombu.pools import producers
+
 from nameko.constants import AMQP_URI_CONFIG_KEY, DEFAULT_RETRY_POLICY
 from nameko.extensions import SharedExtension
+
+
+logger = logging.getLogger(__name__)
 
 
 EXPIRY_GRACE_PERIOD = 5000  # ms
@@ -119,12 +124,18 @@ class BackoffPublisher(SharedExtension):
         return backoff_queue
 
     def republish(self, backoff_exc, message, target_queue):
+        logger.debug('Started republish for %s %s', backoff_exc, target_queue)
 
         expiration = backoff_exc.next(message, self.exchange.name)
         queue = self.make_queue(expiration)
 
+        logger.debug('Created queue object %s', queue.name)
+
         # republish to appropriate backoff queue
-        conn = Connection(self.container.config[AMQP_URI_CONFIG_KEY])
+        conn = Connection(
+            self.container.config[AMQP_URI_CONFIG_KEY],
+            transport_options={'confirm_publish': True})
+
         with producers[conn].acquire(block=True) as producer:
 
             properties = message.properties.copy()
@@ -133,9 +144,29 @@ class BackoffPublisher(SharedExtension):
             headers['backoff'] = expiration
             expiration_seconds = float(expiration) / 1000
 
+            logger.debug('queue binding %s', queue.name)
+
             # force redeclaration; the publisher will skip declaration if
             # the entity has previously been declared by the same connection
+
+            # TODO - not sure about having to declare the exchange
+            # note we have to bind so that we can use the passive declare
+            queue.exchange.maybe_bind(conn)
+            maybe_declare(
+                queue.exchange, conn, retry=True, **DEFAULT_RETRY_POLICY)
+            logger.debug(
+                'Pre-publish exchange check: %s: %s',
+                queue.exchange.name,
+                queue.exchange.declare(passive=True)
+            )
+
+            queue.maybe_bind(conn)
             maybe_declare(queue, conn, retry=True, **DEFAULT_RETRY_POLICY)
+            logger.debug(
+                'Pre-publish queue check: %s: %s',
+                queue.name,
+                queue.queue_declare(passive=True)
+            )
 
             producer.publish(
                 message.body,
@@ -145,6 +176,22 @@ class BackoffPublisher(SharedExtension):
                 expiration=expiration_seconds,
                 retry=True,
                 retry_policy=DEFAULT_RETRY_POLICY,
-                declare=[self.exchange, queue],
+                declare=[queue.exchange, queue],
                 **properties
             )
+
+            logger.debug('published retry to %s', queue.name)
+            logger.debug(
+                'Post-publish exchange check: %s: %s',
+                queue.exchange.name,
+                queue.exchange.declare(passive=True)
+            )
+
+            queue_status = queue.queue_declare(passive=True)
+            logger.debug(
+                'Post-publish queue check: %s: %s',
+                queue.name,
+                queue_status
+            )
+            if queue_status.message_count == 0:
+                logger.warn("No message on queue %s !", queue.name)
