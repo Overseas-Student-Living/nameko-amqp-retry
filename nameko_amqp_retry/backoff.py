@@ -23,10 +23,10 @@ def round_to_nearest(value, interval):
 
 class Backoff(Exception):
 
-    schedule = (1000, 2000, 3000, 5000, 8000, 13000, 21000, 34000, 55000, 80000, 120000, 160000)
-    limit = 50
+    schedule = (5000, 10000, 15000, 20000, 30000, 50000, 80000, 90000, 120000, 150000, 180000, 220000)
+    limit = 10
 
-    random_sigma = 100
+    random_sigma = 1000
     # standard deviation as milliseconds
 
     random_groups_per_sigma = 5
