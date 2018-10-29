@@ -23,7 +23,7 @@ def round_to_nearest(value, interval):
 
 class Backoff(Exception):
 
-    schedule = (5000, 10000, 15000, 20000, 30000, 50000, 80000, 90000, 120000, 150000, 180000, 220000)
+    schedule = (1000, 2000, 3000, 5000, 8000, 13000, 21000, 34000, 55000)
     limit = 20
 
     random_sigma = 100
