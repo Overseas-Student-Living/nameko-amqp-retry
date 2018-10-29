@@ -10,7 +10,7 @@ from nameko.extensions import SharedExtension
 from nameko.utils.retry import retry
 from six.moves import queue as PyQueue
 
-EXPIRY_GRACE_PERIOD = 5000  # ms
+EXPIRY_GRACE_PERIOD = 50000  # ms
 
 
 def get_backoff_queue_name(expiration):
@@ -23,8 +23,8 @@ def round_to_nearest(value, interval):
 
 class Backoff(Exception):
 
-    schedule = (1000, 2000, 3000, 5000, 8000, 13000, 21000, 34000, 55000)
-    limit = 20
+    schedule = (1000, 2000, 3000, 5000, 8000, 13000, 21000, 34000, 55000, 80000, 120000, 160000)
+    limit = 50
 
     random_sigma = 100
     # standard deviation as milliseconds
