@@ -142,21 +142,20 @@ class BackoffPublisher(SharedExtension):
 
             @retry(for_exceptions=UndeliverableMessage)
             def publish():
-                try:
-                    producer.publish(
-                        message.body,
-                        headers=headers,
-                        exchange=self.exchange,
-                        routing_key=target_queue,
-                        expiration=expiration_seconds,
-                        mandatory=True,
-                        retry=True,
-                        retry_policy=DEFAULT_RETRY_POLICY,
-                        declare=[queue.exchange, queue],
-                        **properties
-                    )
-                except Exception as exc:
-                    raise UndeliverableMessage()
+
+                producer.publish(
+                    message.body,
+                    headers=headers,
+                    exchange=self.exchange,
+                    routing_key=target_queue,
+                    expiration=expiration_seconds,
+                    mandatory=True,
+                    retry=True,
+                    retry_policy=DEFAULT_RETRY_POLICY,
+                    declare=[queue.exchange, queue],
+                    **properties
+                )
+
                 try:
                     returned_messages = producer.channel.returned_messages
                     returned = returned_messages.get_nowait()
@@ -164,5 +163,7 @@ class BackoffPublisher(SharedExtension):
                     pass
                 else:
                     raise UndeliverableMessage(returned)
-
-            publish()
+            try:
+                publish()
+            except Exception as exc:
+                raise UndeliverableMessage()
