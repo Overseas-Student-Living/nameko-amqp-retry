@@ -155,7 +155,7 @@ class BackoffPublisher(SharedExtension):
                         declare=[queue.exchange, queue],
                         **properties
                     )
-                except ChannelError as exc:
+                except Exception as exc:
                     if "NO_ROUTE" in str(exc):
                         raise UndeliverableMessage()
                     raise
