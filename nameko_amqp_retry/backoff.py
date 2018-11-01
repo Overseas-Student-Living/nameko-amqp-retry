@@ -4,6 +4,7 @@ import six
 from kombu import Connection
 from kombu.common import maybe_declare
 from kombu.messaging import Exchange, Queue
+from kombu.exceptions import ChannelError
 from nameko.amqp.publish import get_producer, UndeliverableMessage
 from nameko.constants import AMQP_URI_CONFIG_KEY, DEFAULT_RETRY_POLICY
 from nameko.extensions import SharedExtension
@@ -126,7 +127,6 @@ class BackoffPublisher(SharedExtension):
 
         # republish to appropriate backoff queue
         amqp_uri = self.container.config[AMQP_URI_CONFIG_KEY]
-        print(amqp_uri)
         with get_producer(amqp_uri) as producer:
 
             properties = message.properties.copy()
@@ -142,20 +142,23 @@ class BackoffPublisher(SharedExtension):
 
             @retry(for_exceptions=UndeliverableMessage)
             def publish():
-
-                producer.publish(
-                    message.body,
-                    headers=headers,
-                    exchange=self.exchange,
-                    routing_key=target_queue,
-                    expiration=expiration_seconds,
-                    mandatory=True,
-                    retry=True,
-                    retry_policy=DEFAULT_RETRY_POLICY,
-                    declare=[queue.exchange, queue],
-                    **properties
-                )
-
+                try:
+                    producer.publish(
+                        message.body,
+                        headers=headers,
+                        exchange=self.exchange,
+                        routing_key=target_queue,
+                        expiration=expiration_seconds,
+                        mandatory=True,
+                        retry=True,
+                        retry_policy=DEFAULT_RETRY_POLICY,
+                        declare=[queue.exchange, queue],
+                        **properties
+                    )
+                except ChannelError as exc:
+                    if "NO_ROUTE" in str(exc):
+                        raise UndeliverableMessage()
+                    raise
                 try:
                     returned_messages = producer.channel.returned_messages
                     returned = returned_messages.get_nowait()
