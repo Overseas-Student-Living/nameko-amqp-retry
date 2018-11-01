@@ -23,7 +23,7 @@ def round_to_nearest(value, interval):
 
 class Backoff(Exception):
 
-    schedule = (1000, 2000, 3000, 5000, 8000, 13000, 21000, 34000, 55000, 150000, 300000, 800000)
+    schedule = (10000, 20000, 30000, 50000, 80000, 130000, 210000, 240000, 350000, 450000, 500000, 800000)
     limit = 200
 
     random_sigma = 100
@@ -126,19 +126,19 @@ class BackoffPublisher(SharedExtension):
 
         # republish to appropriate backoff queue
         amqp_uri = self.container.config[AMQP_URI_CONFIG_KEY]
-        print(amqp_uri)
         with get_producer(amqp_uri) as producer:
 
             properties = message.properties.copy()
             headers = properties.pop('application_headers')
 
             headers['backoff'] = expiration
-            expiration_seconds = float(expiration)
+            expiration_seconds = float(expiration) / 1000
 
             # force redeclaration; the publisher will skip declaration if
             # the entity has previously been declared by the same connection
             # (see https://github.com/celery/kombu/pull/884)
-            maybe_declare(queue, producer.channel, retry=True, **DEFAULT_RETRY_POLICY)
+            conn = Connection(amqp_uri)
+            maybe_declare(queue, conn, retry=True, **DEFAULT_RETRY_POLICY)
 
             @retry(for_exceptions=UndeliverableMessage)
             def publish():
@@ -163,7 +163,5 @@ class BackoffPublisher(SharedExtension):
                     pass
                 else:
                     raise UndeliverableMessage(returned)
-            try:
-                publish()
-            except Exception as exc:
-                raise UndeliverableMessage()
+
+        publish()
