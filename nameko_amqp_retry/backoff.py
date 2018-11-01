@@ -156,9 +156,7 @@ class BackoffPublisher(SharedExtension):
                         **properties
                     )
                 except Exception as exc:
-                    if "NO_ROUTE" in str(exc):
-                        raise UndeliverableMessage()
-                    raise
+                    raise UndeliverableMessage()
                 try:
                     returned_messages = producer.channel.returned_messages
                     returned = returned_messages.get_nowait()
