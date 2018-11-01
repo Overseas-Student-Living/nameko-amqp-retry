@@ -126,6 +126,7 @@ class BackoffPublisher(SharedExtension):
 
         # republish to appropriate backoff queue
         amqp_uri = self.container.config[AMQP_URI_CONFIG_KEY]
+        print(amqp_uri)
         with get_producer(amqp_uri) as producer:
 
             properties = message.properties.copy()
@@ -161,6 +162,6 @@ class BackoffPublisher(SharedExtension):
                 except PyQueue.Empty:
                     pass
                 else:
-                    raise UndeliverableMessage(returned + str(amqp_uri))
+                    raise UndeliverableMessage(returned)
 
             publish()
