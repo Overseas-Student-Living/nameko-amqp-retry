@@ -133,7 +133,7 @@ class BackoffPublisher(SharedExtension):
             headers = properties.pop('application_headers')
 
             headers['backoff'] = expiration
-            expiration_seconds = float(expiration) / 1000
+            expiration_seconds = float(expiration)
 
             # force redeclaration; the publisher will skip declaration if
             # the entity has previously been declared by the same connection
