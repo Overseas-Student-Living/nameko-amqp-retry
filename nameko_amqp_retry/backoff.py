@@ -126,19 +126,19 @@ class BackoffPublisher(SharedExtension):
 
         # republish to appropriate backoff queue
         amqp_uri = self.container.config[AMQP_URI_CONFIG_KEY]
+        print(amqp_uri)
         with get_producer(amqp_uri) as producer:
 
             properties = message.properties.copy()
             headers = properties.pop('application_headers')
 
             headers['backoff'] = expiration
-            expiration_seconds = float(expiration) / 1000
+            expiration_seconds = float(expiration)
 
             # force redeclaration; the publisher will skip declaration if
             # the entity has previously been declared by the same connection
             # (see https://github.com/celery/kombu/pull/884)
-            conn = Connection(amqp_uri)
-            maybe_declare(queue, conn, retry=True, **DEFAULT_RETRY_POLICY)
+            maybe_declare(queue, producer.channel, retry=True, **DEFAULT_RETRY_POLICY)
 
             @retry(for_exceptions=UndeliverableMessage)
             def publish():
@@ -164,4 +164,4 @@ class BackoffPublisher(SharedExtension):
                 else:
                     raise UndeliverableMessage(returned)
 
-        publish()
+            publish()
