@@ -159,7 +159,7 @@ class TestMessaging(object):
             stack = "".join(traceback.format_exception(exc_type, exc, tb))
             assert "NotYet: try again later" in stack
             assert "nameko_amqp_retry.backoff.Backoff" in stack
-            assert "nameko_amqp_retry.backoff.Expired" in stack
+            assert "nameko_amqp_retry.backoff.Backoff.Expired" in stack
 
     def test_multiple_queues_with_same_exchange_and_routing_key(
         self, container_factory, entrypoint_tracker, rabbit_manager, exchange,
@@ -210,7 +210,11 @@ class TestMessaging(object):
             backoff_queue = rabbit_manager.get_queue(
                 vhost, get_backoff_queue_name(delay)
             )
-            assert backoff_queue['messages'] == 0
+            try:
+                assert backoff_queue['messages'] == 0
+            except KeyError:
+                # When no messages in queue, the key may not be in the dict.
+                pass
 
         service_queue_one = rabbit_manager.get_queue(vhost, queue_one.name)
         service_queue_two = rabbit_manager.get_queue(vhost, queue_two.name)

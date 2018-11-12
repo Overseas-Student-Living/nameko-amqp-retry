@@ -157,7 +157,7 @@ class TestEvents(object):
             stack = "".join(traceback.format_exception(exc_type, exc, tb))
             assert "NotYet: try again later" in stack
             assert "nameko_amqp_retry.backoff.Backoff" in stack
-            assert "nameko_amqp_retry.backoff.Expired" in stack
+            assert "nameko_amqp_retry.backoff.Backoff.Expired" in stack
 
     def test_multiple_services(
         self, dispatch_event, container_factory, entrypoint_tracker,
