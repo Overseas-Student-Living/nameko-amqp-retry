@@ -42,12 +42,18 @@ matrix:
       env: TOX_ENV=py36-latest-lib
     - stage: lib
       python: 3.7
+      dist: xenial
+      sudo: true
       env: TOX_ENV=py37-oldest-lib
     - stage: lib
       python: 3.7
+      dist: xenial
+      sudo: true
       env: TOX_ENV=py37-latest-lib
     - stage: examples
       python: 3.7
+      dist: xenial
+      sudo: true
       env: TOX_ENV=py37-examples
     - stage: deploy
       script: skip
