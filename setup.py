@@ -9,8 +9,8 @@ setup(
     url='http://github.com/nameko/nameko-amqp-retry',
     packages=find_packages(exclude=['test', 'test.*']),
     install_requires=[
-        "nameko>=2.7.0",
-        "kombu>=3.0.25,<4"
+        "nameko>=2.11.0",
+        "kombu"
     ],
     extras_require={
         'dev': [

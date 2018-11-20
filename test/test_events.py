@@ -4,10 +4,8 @@ import pytest
 import six
 from mock import ANY
 from nameko.testing.services import entrypoint_waiter, get_extension
-
 from nameko_amqp_retry import Backoff
-from nameko_amqp_retry.events import event_handler, EventHandler
-
+from nameko_amqp_retry.events import EventHandler, event_handler
 from test import PY3
 
 

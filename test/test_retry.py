@@ -1,5 +1,3 @@
-from contextlib import contextmanager
-import itertools
 import json
 import time
 
@@ -14,14 +12,12 @@ from nameko.constants import AMQP_URI_CONFIG_KEY
 from nameko.extensions import DependencyProvider
 from nameko.testing.services import entrypoint_waiter
 from nameko.testing.utils import get_extension
-from nameko.testing.waiting import wait_for_call
 from nameko.utils.retry import retry
-from requests.exceptions import HTTPError
-
 from nameko_amqp_retry import Backoff, BackoffPublisher
-from nameko_amqp_retry.backoff import get_backoff_queue_name, get_producer
+from nameko_amqp_retry.backoff import get_backoff_queue_name
 from nameko_amqp_retry.messaging import consume
 from nameko_amqp_retry.rpc import rpc
+from requests.exceptions import HTTPError
 
 
 class QuickBackoff(Backoff):
@@ -196,39 +192,17 @@ class TestMandatoryDelivery:
 
         # patch make_queue so that the return value does not have
         # a matching binding; this forces an unroutable messsage
-        with patch.object(backoff_publisher, 'make_queue') as patched:
+        with patch.object(
+            backoff_publisher, 'make_queue', new=lambda _: make_queue(999999)
+        ):
+            publish_message(
+                exchange, "", routing_key=queue.routing_key
+            )
 
-            patched.return_value = make_queue(999999)
-
-            # patch get_producer so we can wait until publish is called
-            # multiple times, demonstrating the retry
-            with patch('nameko_amqp_retry.backoff.get_producer') as patched:
-
-                # create a replacement producer that we can hook into
-                # and make our patched get_producer return that
-                amqp_uri = rabbit_config['AMQP_URI']
-                with get_producer(amqp_uri) as replacement_producer:
-
-                    @contextmanager
-                    def producer_context(*a, **k):
-                        yield replacement_producer
-
-                    patched.side_effect = producer_context
-
-                    # fire entrypoint and wait for retry of the backoff publish
-                    counter = itertools.count()
-                    with wait_for_call(
-                        replacement_producer, 'publish',
-                        callback=lambda *a, **k: next(counter) == 2
-                    ):
-                        publish_message(
-                            exchange, "", routing_key=queue.routing_key
-                        )
-
-                    # when the retry also fails,
-                    # the container is killed so that the request is requeued
-                    with pytest.raises(UndeliverableMessage):
-                        container.wait()
+            # when the backoff publisher fails, the error should bubble up to
+            # the container
+            with pytest.raises(UndeliverableMessage):
+                container.wait()
 
 
 class TestMultipleMessages(object):
