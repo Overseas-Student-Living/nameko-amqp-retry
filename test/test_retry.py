@@ -2,6 +2,7 @@ import json
 import time
 
 import pytest
+from amqp.exceptions import NotFound
 from kombu import Connection
 from kombu.messaging import Exchange, Queue
 from kombu.pools import connections
@@ -17,7 +18,6 @@ from nameko_amqp_retry import Backoff, BackoffPublisher
 from nameko_amqp_retry.backoff import get_backoff_queue_name
 from nameko_amqp_retry.messaging import consume
 from nameko_amqp_retry.rpc import rpc
-from requests.exceptions import HTTPError
 
 
 class QuickBackoff(Backoff):
@@ -48,7 +48,7 @@ class TestPublisher(object):
 
     def test_routing(
         self, container, publish_message, exchange, queue, counter,
-        rabbit_config, rabbit_manager
+        rabbit_config, rabbit_manager, queue_info
     ):
         """ Queues should be dynamically created for each unique delay.
         Messages should be routed to the appropriate queue based on their
@@ -69,12 +69,9 @@ class TestPublisher(object):
         # and only messages with the matching delay are in each one
         @retry
         def check_queue(delay):
-            backoff_queue = rabbit_manager.get_queue(
-                vhost, get_backoff_queue_name(delay)
-            )
-            assert backoff_queue['messages'] == delays.count(delay)
+            backoff_queue = queue_info(get_backoff_queue_name(delay))
+            assert backoff_queue.message_count == delays.count(delay)
 
-        vhost = rabbit_config['vhost']
         for delay in set(delays):
             check_queue(delay)
 
@@ -110,7 +107,7 @@ class TestQueueExpiry(object):
 
     def test_queues_removed(
         self, container, publish_message, exchange, queue, counter,
-        rabbit_config, rabbit_manager, fast_expire
+        rabbit_config, rabbit_manager, fast_expire, queue_info
     ):
         """ Backoff queues should be removed after their messages are
         redelivered.
@@ -132,13 +129,9 @@ class TestQueueExpiry(object):
         time.sleep((max(delays) + fast_expire) / 1000.0)
 
         # verify the queues have been removed
-        vhost = rabbit_config['vhost']
         for delay in set(delays):
-            with pytest.raises(HTTPError) as raised:
-                rabbit_manager.get_queue(
-                    vhost, get_backoff_queue_name(delay)
-                )
-            assert raised.value.response.status_code == 404
+            with pytest.raises(NotFound):
+                queue_info(get_backoff_queue_name(delay))
 
     def test_republishing_redeclares(
         self, container, publish_message, exchange, queue, counter,
