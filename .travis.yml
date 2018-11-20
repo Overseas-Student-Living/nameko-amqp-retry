@@ -18,13 +18,37 @@ matrix:
   include:
     - stage: lib
       python: 2.7
-      env: TOX_ENV=py27-lib
+      env: TOX_ENV=py27-oldest-lib
+    - stage: lib
+      python: 2.7
+      env: TOX_ENV=py27-latest-lib
     - stage: lib
       python: 3.4
-      env: TOX_ENV=py34-lib
-    - stage: examples
+      env: TOX_ENV=py34-oldest-lib
+    - stage: lib
       python: 3.4
-      env: TOX_ENV=py34-examples
+      env: TOX_ENV=py34-latest-lib
+    - stage: lib
+      python: 3.5
+      env: TOX_ENV=py35-oldest-lib
+    - stage: lib
+      python: 3.5
+      env: TOX_ENV=py35-latest-lib
+    - stage: lib
+      python: 3.6
+      env: TOX_ENV=py36-oldest-lib
+    - stage: lib
+      python: 3.6
+      env: TOX_ENV=py36-latest-lib
+    - stage: lib
+      python: 3.7
+      env: TOX_ENV=py37-oldest-lib
+    - stage: lib
+      python: 3.7
+      env: TOX_ENV=py37-latest-lib
+    - stage: examples
+      python: 3.7
+      env: TOX_ENV=py37-examples
     - stage: deploy
       script: skip
       deploy:
