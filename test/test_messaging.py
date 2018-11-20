@@ -7,8 +7,8 @@ from mock import ANY
 from nameko.testing.services import entrypoint_waiter, get_extension
 from nameko_amqp_retry import Backoff
 from nameko_amqp_retry.backoff import get_backoff_queue_name
-from nameko_amqp_retry.messaging import consume, Consumer
-from test import PY3
+from nameko_amqp_retry.messaging import Consumer, consume
+from test import PY3, PY34
 
 
 class TestMessaging(object):
@@ -159,7 +159,10 @@ class TestMessaging(object):
             stack = "".join(traceback.format_exception(exc_type, exc, tb))
             assert "NotYet: try again later" in stack
             assert "nameko_amqp_retry.backoff.Backoff" in stack
-            assert "nameko_amqp_retry.backoff.Expired" in stack
+            if PY34:
+                assert "nameko_amqp_retry.backoff.Expired" in stack
+            else:
+                assert "nameko_amqp_retry.backoff.Backoff.Expired" in stack
 
     def test_multiple_queues_with_same_exchange_and_routing_key(
         self, container_factory, entrypoint_tracker, rabbit_manager, exchange,
