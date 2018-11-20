@@ -123,7 +123,7 @@ class BackoffPublisher(SharedExtension):
         queue = self.make_queue(expiration)
 
         properties = message.properties.copy()
-        headers = properties.pop('application_headers')
+        headers = properties.pop('application_headers', {})
 
         headers['backoff'] = expiration
         expiration_seconds = float(expiration) / 1000
