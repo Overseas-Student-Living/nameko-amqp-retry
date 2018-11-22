@@ -19,6 +19,8 @@ from nameko_amqp_retry.backoff import get_backoff_queue_name
 from nameko_amqp_retry.messaging import consume
 from nameko_amqp_retry.rpc import rpc
 
+from test import NAMEKO3
+
 
 class QuickBackoff(Backoff):
     schedule = (100,)
@@ -324,7 +326,7 @@ class TestCallStack(object):
         with entrypoint_waiter(container, 'method', callback=callback):
             rpc_proxy.service.method("msg")
 
-        assert call_stacks == [
+        expected = [
             [
                 'standalone_rpc_proxy.call.0',
                 'service.method.1'
@@ -348,6 +350,12 @@ class TestCallStack(object):
                 'service.method.4'
             ],
         ]
+
+        if NAMEKO3:  # pragma: no cover
+            for stack in expected:
+                stack[0] = stack[0].replace("proxy", "client").replace("call", "0")
+
+        assert call_stacks == expected
 
     @pytest.mark.usefixtures('predictable_call_ids')
     def test_events_call_stack(self, container, dispatch_event):
