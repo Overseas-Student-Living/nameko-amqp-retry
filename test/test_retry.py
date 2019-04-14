@@ -473,11 +473,12 @@ class TestSerialization(object):
         try:
             config_patch = nameko.config.patch
         except AttributeError:
+            # Nameko 2.X
             rabbit_config['serializer'] = "upperjson"
-            yield  # Nameko 2.X
         else:
+            # Nameko 3.X
             with config_patch({'serializer': "upperjson"}):
-                yield  # Nameko 3.X
+                yield
         unregister("upperjson")
 
     def test_custom_serialization(
