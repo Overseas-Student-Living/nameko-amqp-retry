@@ -6,7 +6,6 @@ from kombu.messaging import Exchange, Queue
 from kombu.pools import connections, producers
 from mock import patch
 from nameko.amqp.publish import get_connection
-from nameko.constants import AMQP_URI_CONFIG_KEY
 from nameko.standalone.events import event_dispatcher
 from nameko.standalone.rpc import ClusterRpcProxy
 from nameko_amqp_retry import Backoff
@@ -48,12 +47,12 @@ def queue(exchange):
 
 
 @pytest.fixture
-def publish_message(rabbit_config):
+def publish_message(amqp_uri):
 
     def publish(
         exchange, payload, routing_key=None, serializer="json", **kwargs
     ):
-        conn = Connection(rabbit_config[AMQP_URI_CONFIG_KEY])
+        conn = Connection(amqp_uri)
 
         with connections[conn].acquire(block=True) as connection:
             exchange.maybe_bind(connection)
@@ -73,7 +72,10 @@ def publish_message(rabbit_config):
 def dispatch_event(rabbit_config):
 
     def dispatch(service_name, event_type, event_data, **kwargs):
-        dispatcher = event_dispatcher(rabbit_config, **kwargs)
+        try:  # Nameko 2.X
+            dispatcher = event_dispatcher(rabbit_config, **kwargs)
+        except TypeError:  # Nameko 3.X
+            dispatcher = event_dispatcher(**kwargs)
         dispatcher(service_name, event_type, event_data)
 
     return dispatch
