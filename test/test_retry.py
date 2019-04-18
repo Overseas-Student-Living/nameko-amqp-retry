@@ -475,6 +475,7 @@ class TestSerialization(object):
         except AttributeError:
             # Nameko 2.X
             rabbit_config['serializer'] = "upperjson"
+            yield
         else:
             # Nameko 3.X
             with config_patch({'serializer': "upperjson"}):
