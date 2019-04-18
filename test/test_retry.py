@@ -1,6 +1,7 @@
 import json
 import time
 
+import nameko
 import pytest
 from amqp.exceptions import NotFound
 from kombu import Connection
@@ -9,7 +10,6 @@ from kombu.pools import connections
 from kombu.serialization import register, unregister
 from mock import ANY, patch
 from nameko.amqp.publish import UndeliverableMessage
-from nameko.constants import AMQP_URI_CONFIG_KEY
 from nameko.extensions import DependencyProvider
 from nameko.testing.services import entrypoint_waiter
 from nameko.testing.utils import get_extension
@@ -470,8 +470,16 @@ class TestSerialization(object):
             "upperjson", encode, decode, "application/x-upper-json", "utf-8"
         )
         # update config so consumers expect it
-        rabbit_config['serializer'] = "upperjson"
-        yield
+        try:
+            config_patch = nameko.config.patch
+        except AttributeError:
+            # Nameko 2.X
+            rabbit_config['serializer'] = "upperjson"
+            yield
+        else:
+            # Nameko 3.X
+            with config_patch({'serializer': "upperjson"}):
+                yield
         unregister("upperjson")
 
     def test_custom_serialization(
@@ -502,8 +510,8 @@ class TestDeadLetteredMessages(object):
             yield limit
 
     @pytest.fixture
-    def deadlettering_exchange(self, rabbit_config, exchange, queue):
-        conn = Connection(rabbit_config[AMQP_URI_CONFIG_KEY])
+    def deadlettering_exchange(self, amqp_uri, exchange, queue):
+        conn = Connection(amqp_uri)
 
         with connections[conn].acquire(block=True) as connection:
 
