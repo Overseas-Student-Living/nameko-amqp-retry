@@ -2,10 +2,29 @@ import sys
 
 from nameko.rpc import Rpc as NamekoRpc
 from nameko.rpc import RpcConsumer as NamekoRpcConsumer
+from nameko.rpc import RpcProxy as NamekoRpcProxy, ServiceProxy
 from nameko_amqp_retry import Backoff, BackoffPublisher, expect_backoff_exception
 from nameko_amqp_retry.constants import (
     CALL_ID_STACK_HEADER_KEY, RPC_METHOD_ID_HEADER_KEY
 )
+
+
+class RpcProxy(NamekoRpcProxy):
+
+    dead_letter_properties = ['x-death', 'x-first-death-exchange', 'x-first-death-queue', 'x-first-death-reason']
+    backoff_properties = ['backoff', 'rpc_method_id']
+
+    def get_dependency(self, worker_ctx):
+        # Removing dead letter queue and backoff headers
+        for key in self.dead_letter_properties + self.backoff_properties:
+            if key in worker_ctx.data:
+                worker_ctx.data.pop(key)
+        return ServiceProxy(
+            worker_ctx,
+            self.target_service,
+            self.rpc_reply_listener,
+            **self.options
+        )
 
 
 class RpcConsumer(NamekoRpcConsumer):

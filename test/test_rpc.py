@@ -6,7 +6,7 @@ from mock import ANY, patch
 from nameko.exceptions import RemoteError
 from nameko.testing.services import entrypoint_waiter, get_extension
 from nameko_amqp_retry import Backoff
-from nameko_amqp_retry.rpc import Rpc, rpc
+from nameko_amqp_retry.rpc import RpcProxy, Rpc, rpc
 from test import PY3, PY34
 
 
@@ -219,6 +219,59 @@ class TestRpc(object):
             [None] * backoff_count + ["two"]
         )
         assert counter['two'] == backoff_count + 1
+
+    def test_multiple_services_rpc_proxy(
+        self, rpc_proxy, wait_for_result, counter, backoff_count,
+        container_factory, rabbit_config, entrypoint_tracker
+    ):
+        """ RPC backoff works correctly when multiple services use it
+        """
+        class ServiceOne(object):
+            name = "service_one"
+
+            @rpc
+            def method(self, payload):
+                if counter[payload].increment() <= backoff_count:
+                    raise Backoff()
+                return payload
+
+        class ServiceTwo(object):
+            name = "service_two"
+
+            service_one = RpcProxy("service_one")
+
+            @rpc
+            def method(self, payload):
+                if counter[payload].increment() <= backoff_count:
+                    raise Backoff()
+                return self.service_one.method("three")
+
+        container_one = container_factory(ServiceOne, rabbit_config)
+        container_one.start()
+        container_two = container_factory(ServiceTwo, rabbit_config)
+        container_two.start()
+
+        with entrypoint_waiter(
+            container_one, 'method', callback=wait_for_result
+        ) as result:
+            res = rpc_proxy.service_one.method("one")
+        assert result.get() == res == "one"
+        assert entrypoint_tracker.get_results() == (
+            [None] * backoff_count + ["one"]
+        )
+        assert counter['one'] == backoff_count + 1
+
+        with entrypoint_waiter(
+            container_two, 'method', callback=wait_for_result
+        ) as result:
+            res = rpc_proxy.service_two.method("two")
+        assert result.get() == res == "three"
+        assert entrypoint_tracker.get_results() == (
+            [None] * backoff_count + ["one"] +
+            [None] * backoff_count + ["three"]
+        )
+        assert counter['two'] == backoff_count + 1
+        assert counter['three'] == backoff_count + 1
 
     def test_multiple_methods(
         self, container_factory, rabbit_config, wait_for_result, rpc_proxy,
